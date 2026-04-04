@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blackbody Radiance Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.1/plotly.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-chtml.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #080c10;
+  --bg2:       #0d1117;
+  --bg3:       #111822;
+  --panel:     #0e1520;
+  --border:    #1e2d3d;
+  --border-hi: #2a4060;
+  --text:      #c0d0e0;
+  --text-dim:  #506070;
+  --green:     #00e07a;
+  --blue:      #4499ff;
+  --red:       #ff3344;
+  --amber:     #ffaa33;
+  --mono:      'IBM Plex Mono', monospace;
+  --head:      'Chakra Petch', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--mono);font-size:12px;
+  display:flex;flex-direction:column;
+}
+
+/* ── HEADER ── */
+header{
+  background:var(--bg2);
+  border-bottom:2px solid var(--green);
+  padding:8px 20px;
+  display:flex;align-items:center;gap:14px;
+  flex-shrink:0;
+}
+header h1{
+  font-family:var(--head);font-size:16px;font-weight:700;
+  color:var(--green);letter-spacing:3px;text-transform:uppercase;
+}
+header .sub{font-size:10px;color:var(--text-dim);letter-spacing:1px;}
+
+/* ── TABS ── */
+.tabs{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;flex-shrink:0;
+}
+.tab-btn{
+  background:transparent;border:none;border-right:1px solid var(--border);
+  color:var(--text-dim);cursor:pointer;
+  font-family:var(--head);font-size:11px;letter-spacing:1.5px;
+  padding:8px 22px;text-transform:uppercase;
+  transition:color .15s,background .15s;
+}
+.tab-btn:hover{color:var(--text);background:var(--bg3);}
+.tab-btn.active{color:var(--green);border-bottom:2px solid var(--green);margin-bottom:-1px;}
+
+/* ── LAYOUT ── */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.tab-panel{display:none;flex:1;flex-direction:row;overflow:hidden;}
+.tab-panel.active{display:flex;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:270px;flex-shrink:0;
+  background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;
+  padding:10px;gap:8px;
+}
+
+/* ── GROUPS ── */
+.grp{border:1px solid var(--border);border-radius:2px;padding:9px;}
+.grp-title{
+  font-family:var(--head);font-size:10px;font-weight:600;
+  letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--green);margin-bottom:8px;
+  padding-bottom:5px;border-bottom:1px solid var(--border);
+}
+
+/* ── FORM ── */
+.radio-row{display:flex;gap:14px;}
+.radio-row label{display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--text);}
+input[type=radio]{accent-color:var(--green);}
+input[type=checkbox]{accent-color:var(--green);}
+input[type=range]{width:100%;accent-color:var(--green);margin:4px 0;}
+
+.frow{display:grid;grid-template-columns:60px 1fr 26px;align-items:center;gap:5px;margin-bottom:5px;}
+.frow label{color:var(--text-dim);font-size:11px;}
+.unit{color:var(--text-dim);font-size:11px;}
+
+input[type=text]{
+  background:var(--bg2);border:1px solid var(--border);border-radius:1px;
+  color:var(--green);font-family:var(--mono);font-size:12px;
+  padding:3px 6px;width:100%;outline:none;
+  transition:border-color .15s;
+}
+input[type=text]:focus{border-color:var(--green);}
+input[type=text]:disabled{color:var(--text-dim);border-color:var(--border);}
+
+.slider-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);}
+
+/* ── BUTTONS ── */
+.btn{
+  background:transparent;border:1px solid var(--green);border-radius:1px;
+  color:var(--green);cursor:pointer;
+  font-family:var(--head);font-size:11px;font-weight:600;letter-spacing:1px;
+  padding:7px 12px;text-transform:uppercase;
+  transition:background .12s,color .12s;width:100%;
+}
+.btn:hover{background:var(--green);color:var(--bg);}
+.btn:disabled{border-color:var(--border);color:var(--text-dim);cursor:not-allowed;}
+.btn:disabled:hover{background:transparent;color:var(--text-dim);}
+.btn-sm{padding:4px 10px;font-size:10px;width:auto;}
+
+/* ── RESULTS ── */
+.results{display:flex;flex-direction:column;gap:3px;}
+.res-row{
+  padding:5px 7px;background:var(--bg2);
+  border-left:2px solid var(--border-hi);
+  display:flex;flex-direction:column;gap:1px;
+}
+.res-lbl{font-size:9px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;}
+.res-val{font-size:12px;color:var(--green);word-break:break-all;}
+.res-val.ph{color:var(--blue);}
+
+/* ── PLOT ── */
+.plot-area{flex:1;display:flex;flex-direction:column;background:var(--bg2);position:relative;}
+.plot-container{flex:1;}
+
+/* scanline overlay */
+.plot-area::after{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.025) 3px,rgba(0,0,0,.025) 4px);
+  pointer-events:none;z-index:2;
+}
+
+/* hover readout overlay */
+.readout{
+  position:absolute;top:10px;right:14px;
+  background:rgba(8,12,16,.9);border:1px solid var(--border-hi);
+  padding:5px 10px;font-size:11px;pointer-events:none;display:none;z-index:3;
+  color:var(--green);
+}
+
+/* ── STATUS ── */
+.statusbar{
+  background:var(--bg2);border-top:1px solid var(--border);
+  padding:3px 14px;font-size:10px;color:var(--text-dim);
+  flex-shrink:0;letter-spacing:.5px;
+}
+.statusbar .ok{color:var(--green);}
+.statusbar .warn{color:var(--amber);}
+
+/* ── ABOUT ── */
+#tab-about{display:none;overflow-y:auto;padding:30px 40px;flex-direction:column;gap:14px;}
+#tab-about.active{display:flex;}
+#tab-about h2{font-family:var(--head);color:var(--green);letter-spacing:2px;text-transform:uppercase;font-size:15px;}
+#tab-about h3{font-family:var(--head);color:var(--amber);letter-spacing:1px;font-size:12px;margin-top:10px;}
+#tab-about p{color:var(--text);line-height:1.75;max-width:720px;}
+#tab-about .eq{
+  background:var(--panel);border-left:3px solid var(--green);
+  padding:10px 16px;font-family:var(--mono);color:var(--amber);
+  max-width:720px;overflow-x:auto;
+}
+#tab-about hr{border:none;border-top:1px solid var(--border);max-width:720px;}
+
+/* ── checkbox row ── */
+.ck-row{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
+.ck-row label{color:var(--text);cursor:pointer;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Blackbody Radiance Calculator</h1>
+  <span class="sub">Beta 1.2 &nbsp;·&nbsp; Dr. D.T. Norton Jr.</span>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active"  onclick="switchTab('bb',this)">BB Calculator</button>
+  <button class="tab-btn"         onclick="switchTab('apt',this)">ApT Calculator</button>
+  <button class="tab-btn"         onclick="switchTab('about',this)">About / Info</button>
+</div>
+
+<div class="content">
+
+<!-- ══════════════ BB CALCULATOR ══════════════ -->
+<div class="tab-panel active" id="tab-bb">
+  <div class="sidebar">
+
+    <div class="grp">
+      <div class="grp-title">Units</div>
+      <div class="radio-row">
+        <label><input type="radio" name="bb-u" id="bb-watts"   value="w" checked> W/cm²/sr</label>
+        <label><input type="radio" name="bb-u" id="bb-photons" value="p"> Photons/s</label>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grp-title">Integration Band</div>
+      <div class="ck-row">
+        <input type="checkbox" id="bb-fwhm" checked>
+        <label for="bb-fwhm">Lock to Spectral FWHM</label>
+      </div>
+      <div class="frow">
+        <label>Lower:</label>
+        <input type="text" id="bb-lb" value="3.000" disabled>
+        <span class="unit">μm</span>
+      </div>
+      <div class="frow">
+        <label>Upper:</label>
+        <input type="text" id="bb-rb" value="5.000" disabled>
+        <span class="unit">μm</span>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grp-title">Blackbody Temperature</div>
+      <div class="frow">
+        <label>T:</label>
+        <input type="text" id="bb-T" value="1000">
+        <span class="unit">K</span>
+      </div>
+      <div class="slider-lbl">
+        <span>50 K</span><span id="bb-slv">1000 K</span><span>6000 K</span>
+      </div>
+      <input type="range" id="bb-sl" min="50" max="6000" step="1" value="1000">
+    </div>
+
+    <button class="btn" onclick="bbCalc()">Calculate</button>
+
+    <div class="grp results" id="bb-res" style="display:none">
+      <div class="res-row"><span class="res-lbl">Radiant Emittance</span><span class="res-val" id="r-emit">—</span></div>
+      <div class="res-row"><span class="res-lbl">Total Radiance</span><span class="res-val" id="r-rad">—</span></div>
+      <div class="res-row"><span class="res-lbl">Peak Spectral Radiance</span><span class="res-val" id="r-pk">—</span></div>
+      <div class="res-row"><span class="res-lbl">Peak Wavelength (Wien)</span><span class="res-val" id="r-wl">—</span></div>
+      <div class="res-row"><span class="res-lbl">In-Band Radiance</span><span class="res-val" id="r-ib">—</span></div>
+    </div>
+
+  </div>
+  <div class="plot-area">
+    <div class="plot-container" id="bb-plot"></div>
+  </div>
+</div>
+
+<!-- ══════════════ APT CALCULATOR ══════════════ -->
+<div class="tab-panel" id="tab-apt">
+  <div class="sidebar">
+
+    <div class="grp">
+      <div class="grp-title">Units</div>
+      <div class="radio-row">
+        <label><input type="radio" name="apt-u" id="apt-watts"   value="w" checked> W/cm²/sr</label>
+        <label><input type="radio" name="apt-u" id="apt-photons" value="p"> Photons/s</label>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grp-title">Integration Band</div>
+      <div class="frow">
+        <label>Lower:</label>
+        <input type="text" id="apt-lb" value="3.00">
+        <span class="unit">μm</span>
+      </div>
+      <div class="frow">
+        <label>Upper:</label>
+        <input type="text" id="apt-rb" value="5.00">
+        <span class="unit">μm</span>
+      </div>
+    </div>
+
+    <button class="btn" onclick="aptCalc()">Calculate</button>
+
+    <div class="grp">
+      <div class="grp-title">Lookup</div>
+      <div class="frow" style="margin-bottom:6px">
+        <label>ApT:</label>
+        <input type="text" id="apt-Tin" placeholder="K">
+        <span class="unit">K</span>
+      </div>
+      <button class="btn btn-sm" id="apt-btn-rad" onclick="aptFromT()" disabled>→ Calc Radiance</button>
+      <div style="height:10px"></div>
+      <div class="frow" style="margin-bottom:6px">
+        <label>Rad:</label>
+        <input type="text" id="apt-Rin" placeholder="W/cm²/sr">
+        <span class="unit"></span>
+      </div>
+      <button class="btn btn-sm" id="apt-btn-apt" onclick="aptFromR()" disabled>→ Calc ApT</button>
+    </div>
+
+    <div class="grp results" id="apt-res" style="display:none">
+      <div class="res-row"><span class="res-lbl">Blackbody Temperature</span><span class="res-val" id="a-T">—</span></div>
+      <div class="res-row"><span class="res-lbl">In-Band Radiance</span><span class="res-val" id="a-R">—</span></div>
+    </div>
+
+  </div>
+  <div class="plot-area" id="apt-pa">
+    <div class="plot-container" id="apt-plot"></div>
+    <div class="readout" id="apt-rd"></div>
+  </div>
+</div>
+
+<!-- ══════════════ ABOUT ══════════════ -->
+<div class="tab-panel" id="tab-about">
+  <h2>Blackbody Radiance Calculator</h2>
+  <p>Written by <strong>Dr. Dennis T. Norton, Jr.</strong> &nbsp;·&nbsp; Beta 1.2 &nbsp;·&nbsp; January 2015</p>
+  <p>Converted to HTML/JS single-page app from the original PyQt5 application.</p>
+  <hr>
+
+  <h3>Planck's Law</h3>
+  <p>Planck's law describes the spectral radiance emitted by a blackbody in thermal equilibrium at temperature <em>T</em>. Per unit wavelength (energy units):</p>
+  <div class="eq">B_λ(λ, T)  =  (2hc² / λ⁵) · 1 / (exp(hc / λk_B T) − 1)    [W·m⁻²·sr⁻¹·m⁻¹]</div>
+  <p>Displayed units in this app are converted to <strong>W/cm²/sr/μm</strong> (divide by 10¹⁰).</p>
+
+  <h3>Photon Radiance</h3>
+  <p>The photon spectral radiance replaces the energy per photon hν, giving:</p>
+  <div class="eq">N_λ(λ, T)  =  (2c / λ⁴) · 1 / (exp(hc / λk_B T) − 1)    [photons·s⁻¹·m⁻²·sr⁻¹·m⁻¹]</div>
+  <p>Displayed in <strong>photons/s/cm²/sr/μm</strong>.</p>
+
+  <h3>Physical Constants</h3>
+  <div class="eq">h  = 6.62607015 × 10⁻³⁴  J·s  (Planck constant)
+c  = 299 792 458  m/s         (speed of light)
+k  = 1.380649 × 10⁻²³  J/K  (Boltzmann constant)</div>
+
+  <h3>In-Band Radiance</h3>
+  <p>Integrated via 200-point composite Simpson's rule over the specified band [λ₁, λ₂].
+  Result in <strong>W/cm²/sr</strong> (or photons/s/cm²/sr).</p>
+
+  <h3>FWHM</h3>
+  <p>Half-maximum crossings are found by linear interpolation on the 2000-point log-spaced spectral curve.</p>
+
+  <h3>Apparent Temperature Calculator</h3>
+  <p>Computes in-band integrated radiance at 0.5 K increments from 1 K to 6000 K using 60-point Simpson's rule.
+  Forward (T → radiance) and inverse (radiance → T) lookups use linear interpolation on this precomputed curve.</p>
+
+  <hr>
+  <p style="color:var(--text-dim);font-size:10px;">
+    BB Calculator tab: temperature slider (50–6000 K), FWHM auto-band locking, manual band limits,
+    spectral radiance curve plot with shaded integration region.<br>
+    ApT Calculator tab: hover over the curve for live T/radiance readout; use Lookup section for precise conversions.
+  </p>
+</div>
+
+</div><!-- .content -->
+
+<div class="statusbar" id="sb"><span class="ok">Ready</span></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// PHYSICS
+// ══════════════════════════════════════════════════════════════
+const H  = 6.62607015e-34;   // Planck [J·s]
+const C  = 299792458.0;      // speed of light [m/s]
+const KB = 1.380649e-23;     // Boltzmann [J/K]
+const PI = Math.PI;
+const C1 = 2 * H * C * C;   // first radiation constant
+const C2 = H * C / KB;      // second radiation constant [m·K]  ≈ 0.014388
+const CONV = 1e10;           // W/m²/sr/m → W/cm²/sr/μm
+
+function planck_l(lam, T) {
+  const x = C2 / (lam * T);
+  if (x > 709) return 0;
+  return (C1 / Math.pow(lam, 5)) / (Math.exp(x) - 1) / CONV;
+}
+
+function planck_p(lam, T) {
+  const x = C2 / (lam * T);
+  if (x > 709) return 0;
+  return (2 * C / (Math.pow(lam, 4))) / (Math.exp(x) - 1) / CONV;
+}
+
+// ── Numerical integration: composite Simpson's rule ──
+// f integrated from a to b in meters; result has units f(lam)*m
+// To get W/cm²/sr from W/cm²/sr/μm: multiply by 1e6
+function simpsons(f, a, b, n) {
+  if (n % 2 !== 0) n++;
+  const h = (b - a) / n;
+  let s = f(a) + f(b);
+  for (let i = 1; i < n; i++) s += f(a + i * h) * (i % 2 ? 4 : 2);
+  return s * h / 3;
+}
+
+function inBandRad(pfn, lbM, rbM, T, n=200) {
+  return simpsons(lam => pfn(lam, T), lbM, rbM, n) * 1e6;
+}
+
+// ── Wavelength array: 2000 log-spaced points 10nm–500μm ──
+const NW = 2000;
+const LAM = new Float64Array(NW);
+(function(){
+  const lo = Math.log10(10e-9), hi = Math.log10(500e-6);
+  for (let i = 0; i < NW; i++) LAM[i] = Math.pow(10, lo + (hi - lo)*i/(NW-1));
+})();
+
+function spectrum(T, pfn) {
+  const M = new Float64Array(NW);
+  for (let i = 0; i < NW; i++) M[i] = pfn(LAM[i], T);
+  return M;
+}
+
+function trapz(y, x) {
+  let s = 0;
+  for (let i = 1; i < x.length; i++) s += (y[i]+y[i-1])*(x[i]-x[i-1])/2;
+  return s;
+}
+
+function argmax(arr) {
+  let idx=0, v=arr[0];
+  for (let i=1;i<arr.length;i++) if(arr[i]>v){v=arr[i];idx=i;}
+  return idx;
+}
+
+function fwhm(lam, M) {
+  const pk = argmax(M), hm = M[pk]/2;
+  let r1=lam[0], r2=lam[lam.length-1];
+  for (let i=1; i<=pk; i++) {
+    if (M[i] >= hm) {
+      const f = (hm - M[i-1])/(M[i]-M[i-1]);
+      r1 = lam[i-1] + f*(lam[i]-lam[i-1]);
+      break;
+    }
+  }
+  for (let i=pk+1; i<M.length; i++) {
+    if (M[i] <= hm) {
+      const f = (hm - M[i-1])/(M[i]-M[i-1]);
+      r2 = lam[i-1] + f*(lam[i]-lam[i-1]);
+      break;
+    }
+  }
+  return {r1, r2};
+}
+
+function linterp(xArr, yArr, q) {
+  let lo=0, hi=xArr.length-1;
+  while (lo < hi-1) {
+    const m = (lo+hi)>>1;
+    if (xArr[m] <= q) lo=m; else hi=m;
+  }
+  const f = (q - xArr[lo])/(xArr[hi] - xArr[lo]);
+  return yArr[lo] + f*(yArr[hi]-yArr[lo]);
+}
+
+// ══════════════════════════════════════════════════════════════
+// PLOTLY THEME
+// ══════════════════════════════════════════════════════════════
+function darkLayout(extras) {
+  return Object.assign({
+    paper_bgcolor: '#080c10',
+    plot_bgcolor:  '#0d1117',
+    font: {color:'#607080', family:'IBM Plex Mono, monospace', size:10},
+    xaxis: {gridcolor:'#1a2530', tickcolor:'#506070', linecolor:'#1e2d3d',
+            zerolinecolor:'#1e2d3d', tickfont:{size:10}},
+    yaxis: {gridcolor:'#1a2530', tickcolor:'#506070', linecolor:'#1e2d3d',
+            zerolinecolor:'#1e2d3d', tickfont:{size:10}},
+    margin:{l:76, r:18, t:42, b:56},
+    showlegend: false
+  }, extras);
+}
+
+const PLY_CFG = {
+  responsive:true, displayModeBar:true, displaylogo:false,
+  modeBarButtonsToRemove:['lasso2d','select2d','toImage']
+};
+
+// ══════════════════════════════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════════════════════════════
+function setStatus(msg, type='ok') {
+  document.getElementById('sb').innerHTML = `<span class="${type}">${msg}</span>`;
+}
+
+function fmt(v, unit) {
+  const s = (Math.abs(v) < 0.001 || Math.abs(v) > 1e6)
+    ? v.toExponential(4) : v.toFixed(5);
+  return `${s} ${unit}`;
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('tab-' + name);
+  panel.style.display = 'flex';
+  panel.classList.add('active');
+  btn.classList.add('active');
+  if (name === 'bb'  && bbInit)  setTimeout(()=>Plotly.Plots.resize('bb-plot'),  50);
+  if (name === 'apt' && aptInit) setTimeout(()=>Plotly.Plots.resize('apt-plot'), 50);
+}
+
+window.addEventListener('resize', () => {
+  if (bbInit)  Plotly.Plots.resize('bb-plot');
+  if (aptInit) Plotly.Plots.resize('apt-plot');
+});
+
+// ══════════════════════════════════════════════════════════════
+// BB CALCULATOR
+// ══════════════════════════════════════════════════════════════
+let bbInit = false;
+let bbM = null;
+
+function bbPfn()    { return document.getElementById('bb-watts').checked ? planck_l : planck_p; }
+function bbIsPhot() { return document.getElementById('bb-photons').checked; }
+function bbUnits()  {
+  return bbIsPhot()
+    ? { y:'Photon Spectral Radiance (ph/s/cm²/sr/μm)', ib:'ph/s/cm²/sr', em:'ph/s/cm²', c:'#4499ff' }
+    : { y:'Spectral Radiance (W/cm²/sr/μm)',           ib:'W/cm²/sr',    em:'W/cm²',    c:'#ff3344' };
+}
+
+function bbUpdateBandPlot() {
+  if (!bbInit || bbM === null) return;
+  const lb = parseFloat(document.getElementById('bb-lb').value)*1e-6;
+  const rb = parseFloat(document.getElementById('bb-rb').value)*1e-6;
+  const T  = parseFloat(document.getElementById('bb-T').value);
+  const u  = bbUnits();
+  const ib = inBandRad(bbPfn(), lb, rb, T);
+  document.getElementById('r-ib').textContent = fmt(ib, u.ib);
+  document.getElementById('r-ib').className = 'res-val' + (bbIsPhot()?' ph':'');
+  Plotly.relayout('bb-plot', {
+    shapes: [bandRect(lb, rb)],
+    annotations: [bandLabel(lb, rb)]
+  });
+}
+
+function bandRect(lb, rb) {
+  return { type:'rect', xref:'x', yref:'paper',
+    x0:lb, x1:rb, y0:0, y1:1,
+    fillcolor:'rgba(0,224,122,0.07)',
+    line:{color:'rgba(0,224,122,0.45)', width:1} };
+}
+function bandLabel(lb, rb) {
+  return { xref:'x', yref:'paper',
+    x:(lb+rb)/2, y:0.97, showarrow:false,
+    text:`${(lb*1e6).toFixed(2)}–${(rb*1e6).toFixed(2)} μm`,
+    font:{color:'#00e07a', size:10, family:'IBM Plex Mono'} };
+}
+
+function bbSetFWHM() {
+  if (bbM === null) return;
+  const {r1, r2} = fwhm(LAM, bbM);
+  document.getElementById('bb-lb').value = (r1*1e6).toFixed(3);
+  document.getElementById('bb-rb').value = (r2*1e6).toFixed(3);
+}
+
+document.getElementById('bb-fwhm').addEventListener('change', function() {
+  const locked = this.checked;
+  document.getElementById('bb-lb').disabled = locked;
+  document.getElementById('bb-rb').disabled = locked;
+  if (locked && bbM) { bbSetFWHM(); bbUpdateBandPlot(); }
+  else if (!locked) bbUpdateBandPlot();
+});
+document.getElementById('bb-lb').addEventListener('change', bbUpdateBandPlot);
+document.getElementById('bb-rb').addEventListener('change', bbUpdateBandPlot);
+document.querySelectorAll('input[name="bb-u"]').forEach(r =>
+  r.addEventListener('change', ()=>{ if(bbM) bbCalc(); })
+);
+
+// Slider ↔ text sync
+document.getElementById('bb-sl').addEventListener('input', function() {
+  document.getElementById('bb-slv').textContent = this.value + ' K';
+  document.getElementById('bb-T').value = this.value;
+});
+document.getElementById('bb-sl').addEventListener('change', bbCalc);
+document.getElementById('bb-T').addEventListener('change', function() {
+  const v = Math.min(6000, Math.max(50, parseFloat(this.value)||1000));
+  this.value = v;
+  document.getElementById('bb-sl').value = v;
+  document.getElementById('bb-slv').textContent = v + ' K';
+  bbCalc();
+});
+
+function bbCalc() {
+  const T = parseFloat(document.getElementById('bb-T').value);
+  if (isNaN(T)||T<50||T>6000) { setStatus('Temperature must be 50–6000 K','warn'); return; }
+  setStatus('Calculating...','warn');
+
+  setTimeout(() => {
+    const pfn = bbPfn(), u = bbUnits(), ph = bbIsPhot();
+
+    const M = spectrum(T, pfn);
+    bbM = M;
+
+    // Total radiance via trapz
+    const totRad  = trapz(Array.from(M), Array.from(LAM)) * 1e6;
+    const totEmit = totRad * PI;
+
+    // Peak
+    const pkIdx   = argmax(M);
+    const pkWl    = LAM[pkIdx]*1e6;
+    const pkVal   = M[pkIdx];
+    const wienWl  = (2897.8e-6 / T)*1e6; // μm
+
+    // FWHM
+    if (document.getElementById('bb-fwhm').checked) bbSetFWHM();
+
+    // In-band
+    const lb = parseFloat(document.getElementById('bb-lb').value)*1e-6;
+    const rb = parseFloat(document.getElementById('bb-rb').value)*1e-6;
+    const ib = inBandRad(pfn, lb, rb, T);
+
+    // Update results
+    document.getElementById('r-emit').textContent = fmt(totEmit, u.em);
+    document.getElementById('r-rad').textContent  = fmt(totRad,  u.ib);
+    document.getElementById('r-pk').textContent   = fmt(pkVal, u.y.match(/\(([^)]+)\)/)[1]);
+    document.getElementById('r-wl').textContent   = `${wienWl.toFixed(4)} μm  (calc: ${pkWl.toFixed(4)} μm)`;
+    document.getElementById('r-ib').textContent   = fmt(ib, u.ib);
+    ['r-emit','r-rad','r-pk','r-wl','r-ib'].forEach(id => {
+      document.getElementById(id).className = 'res-val' + (ph?' ph':'');
+    });
+    document.getElementById('bb-res').style.display = 'flex';
+
+    // X range: 0 to 2×FWHM-right or band-right, whichever is larger
+    const fw = fwhm(LAM, M);
+    const rbUm = parseFloat(document.getElementById('bb-rb').value)*1e-6;
+    const xmax = Math.max(2*fw.r2, rbUm*1.1);
+
+    const trace = {
+      x: Array.from(LAM), y: Array.from(M),
+      mode:'lines', line:{color:u.c, width:2}
+    };
+
+    const layout = darkLayout({
+      title:{text:`${T} K Blackbody Radiance`, font:{color:'#c0d0e0', size:12, family:'Chakra Petch, sans-serif'}},
+      xaxis:{...darkLayout({}).xaxis, title:{text:'Wavelength (m)', font:{color:'#607080',size:11}},
+             range:[0, xmax], tickformat:'.2e'},
+      yaxis:{...darkLayout({}).yaxis, title:{text:u.y, font:{color:'#607080',size:10}, standoff:8},
+             rangemode:'tozero'},
+      shapes:[bandRect(lb, rb)],
+      annotations:[bandLabel(lb, rb)]
+    });
+
+    if (!bbInit) {
+      Plotly.newPlot('bb-plot', [trace], layout, PLY_CFG);
+      bbInit = true;
+    } else {
+      Plotly.react('bb-plot', [trace], layout, PLY_CFG);
+    }
+
+    setStatus(`T = ${T} K  |  Peak: ${wienWl.toFixed(3)} μm  |  In-band: ${fmt(ib,u.ib)}`);
+  }, 8);
+}
+
+// ══════════════════════════════════════════════════════════════
+// APT CALCULATOR
+// ══════════════════════════════════════════════════════════════
+let aptInit = false;
+let aptT = null, aptR = null;
+
+function aptPfn()    { return document.getElementById('apt-watts').checked ? planck_l : planck_p; }
+function aptIsPhot() { return document.getElementById('apt-photons').checked; }
+function aptUnits()  {
+  return aptIsPhot()
+    ? { y:'In-Band Photon Radiance (ph/s/cm²/sr)', unit:'ph/s/cm²/sr', c:'#4499ff' }
+    : { y:'In-Band Radiance (W/cm²/sr)',           unit:'W/cm²/sr',    c:'#ff3344' };
+}
+
+document.querySelectorAll('input[name="apt-u"]').forEach(r =>
+  r.addEventListener('change', ()=>{ if(aptT) aptCalc(); })
+);
+
+function aptCalc() {
+  const lbUm = parseFloat(document.getElementById('apt-lb').value);
+  const rbUm = parseFloat(document.getElementById('apt-rb').value);
+  if (isNaN(lbUm)||isNaN(rbUm)||lbUm>=rbUm) { setStatus('Invalid band limits.','warn'); return; }
+  const lbM = lbUm*1e-6, rbM = rbUm*1e-6;
+  const pfn = aptPfn(), u = aptUnits(), ph = aptIsPhot();
+  setStatus('Computing radiance curve...','warn');
+
+  setTimeout(() => {
+    // Build T array: 1 to 6000 K, 0.5 K steps
+    const Tarr = [], Rarr = [];
+    for (let T=1; T<=6000; T+=0.5) {
+      Tarr.push(T);
+      Rarr.push(simpsons(lam=>pfn(lam,T), lbM, rbM, 60) * 1e6);
+    }
+    aptT = Tarr; aptR = Rarr;
+
+    document.getElementById('apt-btn-rad').disabled = false;
+    document.getElementById('apt-btn-apt').disabled = false;
+    document.getElementById('apt-res').style.display = 'flex';
+
+    const trace = {
+      x:Tarr, y:Rarr, mode:'lines', line:{color:u.c, width:2}
+    };
+
+    const layout = darkLayout({
+      title:{text:`In-Band Radiance: ${lbUm}–${rbUm} μm`,
+             font:{color:'#c0d0e0', size:12, family:'Chakra Petch, sans-serif'}},
+      xaxis:{...darkLayout({}).xaxis,
+             title:{text:'Blackbody Temperature (K)', font:{color:'#607080',size:11}},
+             range:[0, 6100]},
+      yaxis:{...darkLayout({}).yaxis,
+             title:{text:u.y, font:{color:'#607080',size:10}, standoff:8},
+             type:'log'},
+      shapes:[], annotations:[]
+    });
+
+    if (!aptInit) {
+      Plotly.newPlot('apt-plot', [trace], layout, PLY_CFG);
+      aptInit = true;
+
+      document.getElementById('apt-plot').on('plotly_hover', function(d) {
+        const T = d.points[0].x, R = d.points[0].y;
+        const u2 = aptUnits();
+        const rs = (Math.abs(R)<0.001||Math.abs(R)>1e6) ? R.toExponential(4) : R.toFixed(6);
+        const rd = document.getElementById('apt-rd');
+        rd.style.display = 'block';
+        rd.textContent = `T: ${T.toFixed(1)} K  |  Rad: ${rs} ${u2.unit}`;
+        document.getElementById('a-T').textContent = T.toFixed(1)+' K';
+        document.getElementById('a-R').textContent = rs+' '+u2.unit;
+        document.getElementById('a-T').className = 'res-val'+(aptIsPhot()?' ph':'');
+        document.getElementById('a-R').className = 'res-val'+(aptIsPhot()?' ph':'');
+        Plotly.relayout('apt-plot',{shapes:[{
+          type:'line', xref:'x', yref:'paper',
+          x0:T, x1:T, y0:0, y1:1,
+          line:{color:'#00ff66', width:1, dash:'dot'}
+        }]});
+      });
+      document.getElementById('apt-plot').on('plotly_unhover', ()=>{
+        document.getElementById('apt-rd').style.display = 'none';
+      });
+    } else {
+      Plotly.react('apt-plot', [trace], layout, PLY_CFG);
+    }
+
+    setStatus(`In-band radiance computed for ${lbUm}–${rbUm} μm  |  ${Tarr.length} temperature points`);
+  }, 8);
+}
+
+function aptShowResult(T, R) {
+  const u = aptUnits();
+  const rs = (Math.abs(R)<0.001||Math.abs(R)>1e6) ? R.toExponential(4) : R.toFixed(6);
+  document.getElementById('a-T').textContent = T.toFixed(3)+' K';
+  document.getElementById('a-R').textContent = rs+' '+u.unit;
+  document.getElementById('a-T').className = 'res-val'+(aptIsPhot()?' ph':'');
+  document.getElementById('a-R').className = 'res-val'+(aptIsPhot()?' ph':'');
+  document.getElementById('apt-res').style.display = 'flex';
+  if (aptInit) Plotly.relayout('apt-plot',{shapes:[{
+    type:'line', xref:'x', yref:'paper',
+    x0:T, x1:T, y0:0, y1:1,
+    line:{color:'#00ff66', width:1.5, dash:'dot'}
+  }]});
+}
+
+function aptFromT() {
+  const T = parseFloat(document.getElementById('apt-Tin').value);
+  if (isNaN(T)||!aptT) return;
+  if (T<aptT[0]||T>aptT[aptT.length-1]) { setStatus('Temperature out of range.','warn'); return; }
+  const R = linterp(aptT, aptR, T);
+  document.getElementById('apt-Rin').value = R.toExponential(4);
+  aptShowResult(T, R);
+}
+
+function aptFromR() {
+  const R = parseFloat(document.getElementById('apt-Rin').value);
+  if (isNaN(R)||!aptR) return;
+  const rMin = aptR[0], rMax = aptR[aptR.length-1];
+  if (R < rMin || R > rMax) { setStatus('Radiance out of computed range.','warn'); return; }
+  const T = linterp(aptR, aptT, R);
+  document.getElementById('apt-Tin').value = T.toFixed(3);
+  aptShowResult(T, R);
+}
+
+// ── Initial status ──
+setStatus('Ready');
+</script>
+</body>
+</html>
